@@ -65,3 +65,4 @@ function buyItem() {}
 
 function rentItem() {}
 --emit event
+  
