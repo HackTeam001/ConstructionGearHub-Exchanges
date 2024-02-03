@@ -2,7 +2,7 @@ import React from 'react';
 import {Gears, Header, } from '../../components'
 
 
-const Home = () => {
+const Home:React.FC = () => {
 
   return <div>
    <Header />

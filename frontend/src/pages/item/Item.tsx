@@ -3,7 +3,7 @@ import './item.css'
 import creator from '../../assets/profile.png'
 import item from '../../assets/item1.jpg'
 
-const Item = () => {
+const Item:React.FC = () => {
 
 
 

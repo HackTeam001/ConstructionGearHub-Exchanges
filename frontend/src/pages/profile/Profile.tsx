@@ -4,7 +4,7 @@ import profile_banner from '../../assets/profile_banner.png'
 import profile_pic from '../../assets/profile.png'
 import Gears from '../../components/gears/Gears'
 
-const Profile = () => {
+const Profile:React.FC = () => {
 
   return (
     <div className='profile section__padding'>
@@ -14,7 +14,7 @@ const Profile = () => {
         </div>
         <div className="profile-pic">
             <img src={profile_pic} alt="profile" />
-            <h3>James Bond</h3>
+            <h3>James </h3>
         </div>
       </div>
       <div className="profile-bottom">

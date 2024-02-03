@@ -3,7 +3,7 @@ import './register.css'
 import {Link} from 'react-router-dom'
 import Image from '../../assets/Image.png'
 
-const Register = () => {
+const Register:React.FC = () => {
 
   return (
     <div className='register section__padding'>

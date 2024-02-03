@@ -4,7 +4,7 @@ import { RiMenu3Line, RiCloseLine } from 'react-icons/ri';
 import logo from '../../assets/logo.png'
 import {  Link } from "react-router-dom";
 
-const Menu = () => (
+const Menu:React.FC = () => (
   <>
      <Link to="/items"> <p>Explore</p> </Link>
      <Link to="/my-items"> <p> My Items</p> </Link>

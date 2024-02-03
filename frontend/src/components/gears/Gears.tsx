@@ -8,7 +8,13 @@ import gears4 from '../../assets/gear4.jpg'
 import gears5 from '../../assets/gear5.jpg'
 import { Link } from 'react-router-dom';
 
-const Gears = ({title}) => {
+
+interface GearsProps {
+  title:string;
+}
+
+
+const Gears: React.FC<GearsProps> = ({title}) => {
   return (
     <div className='gears section__padding'>
       <div className="gears-container">

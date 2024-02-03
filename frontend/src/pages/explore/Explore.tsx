@@ -2,7 +2,7 @@ import React from 'react';
 import {Gears, ItemList } from '../../components'
 
 
-const Explore = () => {
+const Explore:React.FC = () => {
 
   const items = [
     "Excavator",
