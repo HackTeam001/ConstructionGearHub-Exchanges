@@ -1,14 +1,11 @@
 import React from 'react'
 import './gears.css'
-import { AiFillHeart,AiOutlineHeart } from "react-icons/ai";
+import { AiFillHeart } from "react-icons/ai";
 import gears1 from '../../assets/gear1.jpg'
 import gears2 from '../../assets/gear2.jpg'
 import gears3 from '../../assets/gear3.jpg'
 import gears4 from '../../assets/gear4.jpg'
 import gears5 from '../../assets/gear5.jpg'
-import gears6 from '../../assets/gear6.jpg'
-import gears7 from '../../assets/gear7.jpg'
-import gears8 from '../../assets/gear8.jpg'
 import { Link } from 'react-router-dom';
 
 const Gears = ({title}) => {
