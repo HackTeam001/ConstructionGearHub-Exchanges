@@ -1,0 +1,31 @@
+.equipment-container {
+    text-align: center;
+  }
+  
+  .equipment-list {
+    list-style-type: none;
+    padding: 10;
+    margin-top: 10;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap; /* Add this to allow items to wrap */
+  }
+  
+  
+  .equipment-item {
+    margin: 10px 10px; /* Adjust spacing between list items */
+  }
+  
+  .equipment-link {
+    text-decoration: none;
+    color:#00778b;
+    padding: 15px 25px;
+    margin-top: 10px;
+    transition: all 0.3s ease;
+  }
+  
+  .equipment-link:hover {
+    background-color:#00778b;
+    color: #fff;
+  }
+  
