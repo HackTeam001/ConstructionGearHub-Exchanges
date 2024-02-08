@@ -92,7 +92,7 @@ contract ExchangeSite is ReentrancyGuard {
         _;
     }
 
-    modifier itemdoesntExist(uint _itemID) {
+    modifier itemExists(uint _itemID) {
         if (items[_itemID].price == 0) {
             revert itemDoesntExist();
         }
@@ -102,7 +102,7 @@ contract ExchangeSite is ReentrancyGuard {
     /*@dev button opens shop*/
     function openShop(string memory _name) private onlyOwner nonReentrant {
         emit ownerOpenedShop();
-        shopID = shopID++;
+        shopID++;
         Shop memory newShop = Shop(msg.sender, _name, shopID, true);
         s_availableShops[msg.sender] = newShop;
         shopOwners.push(msg.sender);
@@ -115,7 +115,7 @@ contract ExchangeSite is ReentrancyGuard {
         uint _shopID
     ) private onlyOwner shopExists(_shopID) nonReentrant {
         emit ownerClosedShop();
-        s_availableShops[msg.sender].isOpen == false;
+        s_availableShops[msg.sender].isOpen = false;
     }
 
     function foreverCloseShop(uint _shopID) private onlyOwner {}
@@ -144,7 +144,7 @@ contract ExchangeSite is ReentrancyGuard {
     /*@dev button deletes item from shop*/
     function deleteItem(
         uint _itemID
-    ) private onlyOwner itemdoesntExist(_itemID) nonReentrant {
+    ) private onlyOwner itemExists(_itemID) nonReentrant {
         emit itemDeleted(_itemID);
         delete items[_itemID];
     }
@@ -152,7 +152,7 @@ contract ExchangeSite is ReentrancyGuard {
     /*@dev button unlists item from shop until it becomes available*/
     function unlistItem(
         uint _itemID
-    ) private onlyOwner itemdoesntExist(_itemID) nonReentrant {
+    ) private onlyOwner itemExists(_itemID) nonReentrant {
         emit itemUnlisted(_itemID);
         items[_itemID].listed = false;
     }
