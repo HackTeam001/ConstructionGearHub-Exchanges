@@ -21,13 +21,12 @@ contract ExchangeSite is ReentrancyGuard {
         string description,
         uint price
     );
-    event itemDeleted(uint indexed shopID);
+    event itemDeleted(uint shopID);
 
-    event itemUnlisted(uint indexed shopID);
+    event itemUnlisted(uint shopID);
 
     //Storage variables
     address private s_owner;
-    address[] public shopOwners;
 
     Shop[] public s_shops;
     bool public s_isOpen;
@@ -36,6 +35,11 @@ contract ExchangeSite is ReentrancyGuard {
     uint public s_itemID;
 
     mapping(address => Shop) s_availableShops;
+    mapping(uint => bool) private s_availableShopIDs;
+    mapping(address => uint[]) public addressToShopIds;
+
+    mapping(uint => Item[]) public shopIDToItems;
+    mapping(uint => mapping(uint => uint)) public itemsIndex;
     /*@dev Different items in our shop recognized by unique uint shopID */
     mapping(uint => Item) private items;
 
@@ -102,12 +106,18 @@ contract ExchangeSite is ReentrancyGuard {
     /*@dev button opens shop*/
     function openShop(string memory _name) private onlyOwner nonReentrant {
         emit ownerOpenedShop();
-        shopID++;
-        Shop memory newShop = Shop(msg.sender, _name, shopID, true);
+        uint newShopID = shopID + 1;
+        while (s_availableShopIDs[newShopID]) {
+            newShopID++;
+        }
+        Shop memory newShop = Shop(msg.sender, _name, newShopID, true);
         s_availableShops[msg.sender] = newShop;
-        shopOwners.push(msg.sender);
-        //not sure but shop should have items
-        items;
+
+        // Add the new shop ID to the address's list of shop IDs to allow an address to open multiple shops without creating duplicate entries
+        addressToShopIds[msg.sender].push(newShopID);
+
+        // Initialize an empty array of items for the new shop
+        shopIDToItems[newShopID] = new Item[](0);
     }
 
     /*@dev button opens shop*/
@@ -116,12 +126,14 @@ contract ExchangeSite is ReentrancyGuard {
     ) private onlyOwner shopExists(_shopID) nonReentrant {
         emit ownerClosedShop();
         s_availableShops[msg.sender].isOpen = false;
+        s_availableShopIDs[_shopID] = false;
     }
 
     function foreverCloseShop(uint _shopID) private onlyOwner {}
 
     /*@dev button adds item to shop*/
     function addItem(
+        uint _shopID,
         string memory _name,
         string memory _description,
         uint256 _price
@@ -139,14 +151,35 @@ contract ExchangeSite is ReentrancyGuard {
             true
         );
         items[s_itemID] = newItemAdded;
+
+        // Add the new item to the shop's array of items
+        shopIDToItems[_shopID].push(newItemAdded);
+
+        // Store the index of the new item
+        itemsIndex[_shopID][s_itemID] = shopIDToItems[_shopID].length - 1;
     }
 
     /*@dev button deletes item from shop*/
     function deleteItem(
+        uint _shopID,
         uint _itemID
     ) private onlyOwner itemExists(_itemID) nonReentrant {
         emit itemDeleted(_itemID);
         delete items[_itemID];
+
+        // Get the index of the item to delete
+        uint index = itemsIndex[_shopID][_itemID];
+        uint lastIndex = shopIDToItems[_shopID].length - 1;
+        Item memory lastItem = shopIDToItems[_shopID][lastIndex];
+
+        // Move the last item to the index of the item to delete
+        shopIDToItems[_shopID][index] = lastItem;
+
+        // Remove the last item
+        shopIDToItems[_shopID].pop();
+
+        // Update the index of the last item
+        itemsIndex[_shopID][_itemID] = 0;
     }
 
     /*@dev button unlists item from shop until it becomes available*/
