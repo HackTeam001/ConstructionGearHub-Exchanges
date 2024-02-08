@@ -1,112 +1,178 @@
-// SPDX-License-Identifier: UNLICENSED
+//SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.13;
 
 import "lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
-contract Shop is ReentrancyGuard {
+contract ExchangeSite is ReentrancyGuard {
     //----Errors----//
     error notOwner();
-
+    error shopDoesntExist();
     error itemNotListed();
+    error itemDoesntExist();
 
     //----Events----//
     event ownerOpenedShop();
     event ownerClosedShop();
 
     event itemAdded(
-        uint indexed id,
+        uint indexed shopID,
         string name,
         string description,
         uint price
     );
-    event itemDeleted(uint indexed id);
+    event itemDeleted(uint indexed shopID);
 
-    event itemUnlisted(uint indexed id);
+    event itemUnlisted(uint indexed shopID);
 
     //Storage variables
-    address public s_owner;
+    address private s_owner;
+    address[] public shopOwners;
+
+    Shop[] public s_shops;
     bool public s_isOpen;
+
+    uint private shopID;
+    uint public s_itemID;
+
+    mapping(address => Shop) s_availableShops;
+    /*@dev Different items in our shop recognized by unique uint shopID */
+    mapping(uint => Item) private items;
+
+    //used when searching for an item?
+    mapping(string => Item) itemNames;
 
     constructor() {
         s_owner = msg.sender;
-        s_isOpen = true;
+    }
+
+    struct Shop {
+        address shopAddress;
+        string name;
+        uint shopID;
+        bool isOpen;
     }
 
     struct Item {
         string name;
+        uint itemID;
         string description;
         uint256 price;
         bool listed;
     }
-
-    /*@dev Different items in our shop recognized by unique uint id */
-    mapping(uint => Item) private items;
 
     /*@dev Only the owner has access to the function */
     modifier onlyOwner() {
         if (msg.sender != s_owner) {
             revert notOwner();
         }
+        if (msg.sender == address(0)) {
+            revert notOwner();
+        }
+        _;
+    }
+
+    modifier shopIsOpen(uint _shopID) {
+        require(s_availableShops[msg.sender].isOpen == true, "Shop is closed");
+        _;
+    }
+
+    modifier shopExists(uint _shopID) {
+        if (s_availableShops[msg.sender].shopID != _shopID) {
+            revert shopDoesntExist();
+        }
         _;
     }
 
     /*@dev function requires item to be listed in order to pass through*/
-    modifier isListed(uint _id) {
-        if (items[_id].listed == false) {
+    modifier isListed(uint _itemID) {
+        if (items[_itemID].listed == false) {
             revert itemNotListed();
         }
         _;
     }
 
-    /*@dev button opens shop*/
-    function openShop() private onlyOwner nonReentrant {
-        emit ownerOpenedShop();
-        s_isOpen = true;
+    modifier itemdoesntExist(uint _itemID) {
+        if (items[_itemID].price == 0) {
+            revert itemDoesntExist();
+        }
+        _;
     }
 
     /*@dev button opens shop*/
-    function closeShop() private onlyOwner nonReentrant {
-        emit ownerClosedShop();
-        s_isOpen = false;
+    function openShop(string memory _name) private onlyOwner nonReentrant {
+        emit ownerOpenedShop();
+        shopID = shopID++;
+        Shop memory newShop = Shop(msg.sender, _name, shopID, true);
+        s_availableShops[msg.sender] = newShop;
+        shopOwners.push(msg.sender);
+        //not sure but shop should have items
+        items;
     }
+
+    /*@dev button opens shop*/
+    function closeShop(
+        uint _shopID
+    ) private onlyOwner shopExists(_shopID) nonReentrant {
+        emit ownerClosedShop();
+        s_availableShops[msg.sender].isOpen == false;
+    }
+
+    function foreverCloseShop(uint _shopID) private onlyOwner {}
 
     /*@dev button adds item to shop*/
     function addItem(
-        uint _id,
         string memory _name,
         string memory _description,
         uint256 _price
     ) private onlyOwner nonReentrant {
-        require(items[_id].price == 0, "Item with the same id exists");
-        emit itemAdded(_id, _name, _description, _price);
-        items[_id] = Item(_name, _description, _price, true);
+        require(items[s_itemID].price == 0, "Item with the same itemID exists");
+        require(_price > 0, "Set item price");
+
+        s_itemID++;
+        emit itemAdded(s_itemID, _name, _description, _price);
+        Item memory newItemAdded = Item(
+            _name,
+            s_itemID,
+            _description,
+            _price,
+            true
+        );
+        items[s_itemID] = newItemAdded;
     }
 
     /*@dev button deletes item from shop*/
-    function deleteItem(uint _id) private onlyOwner nonReentrant {
-        require(items[_id].price != 0, "Item with that ID doesn't exist");
-        emit itemDeleted(_id);
-        delete items[_id];
+    function deleteItem(
+        uint _itemID
+    ) private onlyOwner itemdoesntExist(_itemID) nonReentrant {
+        emit itemDeleted(_itemID);
+        delete items[_itemID];
     }
 
     /*@dev button unlists item from shop until it becomes available*/
-    function unlistItem(uint _id) private onlyOwner nonReentrant {
-        require(items[_id].price != 0, "Item with that ID doesn't exist");
-        emit itemUnlisted(_id);
-        items[_id].listed = false;
+    function unlistItem(
+        uint _itemID
+    ) private onlyOwner itemdoesntExist(_itemID) nonReentrant {
+        emit itemUnlisted(_itemID);
+        items[_itemID].listed = false;
     }
 
     /*@dev Users use this button to buy an item from the shop*/
-    function buyItem(uint _id) external payable isListed(_id) {
-        require(s_isOpen, "Shop is not open");
-        require(msg.value >= items[_id].price, "Insufficient funds");
+    function buyItem(
+        uint _itemID,
+        uint _shopID
+    ) external payable isListed(_itemID) shopIsOpen(_shopID) {
+        require(msg.value == items[_itemID].price, "Insufficient funds");
         require(msg.sender != s_owner, "Shop owner cannot buy their own item");
 
         //transfer happens via escrow contract (WILL MAKE THIS!!)
     }
 
     /*@dev Users use this button to buy an item from the shop*/
-    function hireItem(uint _id) external view isListed(_id) {
+    function hireItem(
+        uint _itemID,
+        uint _shopID
+    ) external view isListed(_itemID) shopIsOpen(_shopID) {
         require(s_isOpen, "Shop is not open");
 
         //perform hiring via escrow contract
@@ -115,7 +181,7 @@ contract Shop is ReentrancyGuard {
 
 /*@dev This Escrow contract holds the funds until the buyer confirms receipt and satisfaction, at which point the funds are released to the seller. */
 contract EscrowService {
-    event buyerPaid(address indexed buyer, uint indexed amountPaid);
+    event buyerPashopID(address indexed buyer, uint indexed amountPashopID);
     event sellerGetsFundsAfterBuyerConfirmsDelivery(
         address indexed buyer,
         uint indexed amountSent
@@ -166,10 +232,13 @@ contract EscrowService {
 
     function depositToThisContract() private {
         require(msg.sender == buyer, "Address depositing is not buyer");
-        require(currentState == State.AWAITING_PAYMENT, "Buyer has alr paid");
+        require(
+            currentState == State.AWAITING_PAYMENT,
+            "Buyer has alr pashopID"
+        );
 
         //msg.value should be >= to our item's price. Inherited from the other contract
-        emit buyerPaid(msg.sender, msg.value);
+        emit buyerPashopID(msg.sender, msg.value);
         currentState = State.AWAITING_DELIVERY;
     }
 
