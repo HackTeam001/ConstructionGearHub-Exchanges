@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 
 import "lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
-/*@dev This Escrow contract holds the funds until the buyer confirms receipt and satisfaction, at which point the funds are released to the seller. */
+/*@dev This Escrow contract holds the funds until the buyer confirms receipt and satisfaction, at which point the funds are released to the seller👇*/
 contract EscrowService {
     event buyerPaid(address indexed buyer, uint indexed amountPaid);
     event sellerGetsFundsAfterBuyerConfirmsDelivery(
@@ -27,9 +27,8 @@ contract EscrowService {
     address payable private seller;
 
     uint private itemPrice;
-    uint private finalPrice;
-
     uint private arbitratorFees; //Arbitrator gets 5% for handling the tx
+    uint private finalPrice;
 
     mapping(address => uint) private balances;
 
@@ -69,7 +68,12 @@ contract EscrowService {
         seller = _seller;
         arbitrator = _arbitrator;
 
-        arbitratorFees = (_itemPrice * 5) / 100;
+        arbitratorFees = (_itemPrice * 4) / 100;
+    }
+
+    function itemFinalPrice() private returns (uint) {
+        finalPrice = itemPrice - arbitratorFees;
+        return finalPrice;
     }
 
     //NON REENTRANT MODIFIER NEEDED!!!!!
@@ -95,8 +99,6 @@ contract EscrowService {
             "Buyer has alr gotten item"
         );
 
-        finalPrice = address(this).balance - arbitratorFees;
-
         emit sellerGetsFundsAfterBuyerConfirmsDelivery(msg.sender, finalPrice);
         seller.transfer(finalPrice);
         currentState = State.COMPLETED_TX;
@@ -120,8 +122,33 @@ contract EscrowService {
     function getCurrentState() public view returns (State) {
         return currentState;
     }
+
+    function getBuyerDetails() private view returns (buyerDetails memory) {
+        return buyerCompleteDetails[buyer];
+    }
+
+    function getArbitratorDetails()
+        private
+        view
+        returns (arbitratorDetails memory)
+    {
+        return arbitratorCompleteDetails[arbitrator];
+    }
+
+    function getSellerDetails() private view returns (sellerDetails memory) {
+        return sellerCompleteDetails[seller];
+    }
+
+    function getItemPrice() private view returns (uint) {
+        return itemPrice;
+    }
+
+    function getArbitratorFees() private view returns (uint) {
+        return arbitratorFees;
+    }
 }
 
+//OUR INTERFACE 👇👇
 interface IEscrow {
     function depositToThisContract() external payable;
 
@@ -132,6 +159,7 @@ interface IEscrow {
     function getCurrentState() external view returns (EscrowService.State);
 }
 
+//OUR MAIN CONTRACT 👇👇
 contract ExchangeSite is ReentrancyGuard {
     //----Errors----//
     error notOwner();
