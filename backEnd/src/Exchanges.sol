@@ -4,6 +4,134 @@ pragma solidity ^0.8.13;
 
 import "lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
+/*@dev This Escrow contract holds the funds until the buyer confirms receipt and satisfaction, at which point the funds are released to the seller. */
+contract EscrowService {
+    event buyerPaid(address indexed buyer, uint indexed amountPaid);
+    event sellerGetsFundsAfterBuyerConfirmsDelivery(
+        address indexed buyer,
+        uint indexed amountSent
+    );
+
+    event arbitratorPaid(address indexed arbitrator, uint indexed fees);
+
+    enum State {
+        AWAITING_PAYMENT,
+        AWAITING_DELIVERY,
+        COMPLETED_TX
+    }
+
+    State private currentState;
+
+    address payable private buyer;
+    address payable private arbitrator;
+    address payable private seller;
+
+    uint private itemPrice;
+    uint private finalPrice;
+
+    uint private arbitratorFees; //Arbitrator gets 5% for handling the tx
+
+    mapping(address => uint) private balances;
+
+    mapping(address => buyerDetails) buyerCompleteDetails;
+    mapping(address => arbitratorDetails) arbitratorCompleteDetails;
+    mapping(address => sellerDetails) sellerCompleteDetails;
+
+    struct buyerDetails {
+        string name;
+        string location;
+        string emailAddress;
+        uint phoneNumber;
+    }
+
+    struct sellerDetails {
+        string name;
+        string location;
+        string emailAddress;
+        uint phoneNumber;
+    }
+
+    struct arbitratorDetails {
+        string name;
+        string location;
+        string emailAddress;
+        uint phoneNumber;
+    }
+
+    constructor(
+        address payable _buyer,
+        address payable _arbitrator,
+        address payable _seller,
+        uint _itemPrice
+    ) payable {
+        currentState = State.AWAITING_PAYMENT;
+        buyer = _buyer;
+        seller = _seller;
+        arbitrator = _arbitrator;
+
+        arbitratorFees = (_itemPrice * 5) / 100;
+    }
+
+    //NON REENTRANT MODIFIER NEEDED!!!!!
+    function depositToThisContract() public payable {
+        require(msg.sender == buyer, "Address depositing is not buyer");
+        require(currentState == State.AWAITING_PAYMENT, "Buyer has alr Paid");
+        require(msg.value == itemPrice, "Incorrect amount sent");
+
+        // Increase the balance within the contract
+        balances[address(this)] += itemPrice;
+
+        // Decrease the sender's balance
+        balances[msg.sender] -= itemPrice;
+
+        emit buyerPaid(msg.sender, msg.value);
+        currentState = State.AWAITING_DELIVERY;
+    }
+
+    function confirmDelivery() internal {
+        require(msg.sender == buyer, "Address confirming is not buyer");
+        require(
+            currentState == State.AWAITING_DELIVERY,
+            "Buyer has alr gotten item"
+        );
+
+        finalPrice = address(this).balance - arbitratorFees;
+
+        emit sellerGetsFundsAfterBuyerConfirmsDelivery(msg.sender, finalPrice);
+        seller.transfer(finalPrice);
+        currentState = State.COMPLETED_TX;
+    }
+
+    function withdrawToArbitrator() internal {
+        require(
+            msg.sender == arbitrator,
+            "Address confirming is not arbitrator"
+        );
+        require(
+            currentState == State.COMPLETED_TX,
+            "Transaction is ongoing. Buyer yet to confirm delivery"
+        );
+
+        emit arbitratorPaid(msg.sender, arbitratorFees);
+
+        arbitrator.transfer(arbitratorFees);
+    }
+
+    function getCurrentState() public view returns (State) {
+        return currentState;
+    }
+}
+
+interface IEscrow {
+    function depositToThisContract() external payable;
+
+    function confirmDelivery() external;
+
+    function withdrawToArbitrator() external;
+
+    function getCurrentState() external view returns (EscrowService.State);
+}
+
 contract ExchangeSite is ReentrancyGuard {
     //----Errors----//
     error notOwner();
@@ -190,7 +318,7 @@ contract ExchangeSite is ReentrancyGuard {
         items[_itemID].listed = false;
     }
 
-    /*@dev Users use this button to buy an item from the shop*/
+    /*@dev Users use this button to buy an item from the shop. WILL Add no. of items to buy*/
     function buyItem(
         uint _itemID,
         uint _shopID
@@ -209,88 +337,5 @@ contract ExchangeSite is ReentrancyGuard {
         require(s_isOpen, "Shop is not open");
 
         //perform hiring via escrow contract
-    }
-}
-
-/*@dev This Escrow contract holds the funds until the buyer confirms receipt and satisfaction, at which point the funds are released to the seller. */
-contract EscrowService {
-    event buyerPashopID(address indexed buyer, uint indexed amountPashopID);
-    event sellerGetsFundsAfterBuyerConfirmsDelivery(
-        address indexed buyer,
-        uint indexed amountSent
-    );
-
-    enum State {
-        AWAITING_PAYMENT,
-        AWAITING_DELIVERY,
-        COMPLETED_TX
-    }
-
-    State private currentState;
-
-    address private buyer;
-    address private arbitrator;
-    address payable private seller;
-
-    struct buyerDetails {
-        string name;
-        string location;
-        string emailAddress;
-        uint phoneNumber;
-    }
-
-    struct sellerDetails {
-        string name;
-        string location;
-        string emailAddress;
-        uint phoneNumber;
-    }
-
-    struct arbitratorDetails {
-        string name;
-        string location;
-        string emailAddress;
-        uint phoneNumber;
-    }
-    mapping(address => buyerDetails) buyerCompleteDetails;
-    mapping(address => arbitratorDetails) arbitratorCompleteDetails;
-    mapping(address => sellerDetails) sellerCompleteDetails;
-
-    constructor(address _buyer, address _arbitrator, address payable _seller) {
-        currentState = State.AWAITING_PAYMENT;
-        buyer = _buyer;
-        seller = _seller;
-        arbitrator = _arbitrator;
-    }
-
-    function depositToThisContract() private {
-        require(msg.sender == buyer, "Address depositing is not buyer");
-        require(
-            currentState == State.AWAITING_PAYMENT,
-            "Buyer has alr pashopID"
-        );
-
-        //msg.value should be >= to our item's price. Inherited from the other contract
-        emit buyerPashopID(msg.sender, msg.value);
-        currentState = State.AWAITING_DELIVERY;
-    }
-
-    function confirmDelivery() private {
-        require(msg.sender == buyer, "Address confirming is not buyer");
-        require(
-            currentState == State.AWAITING_DELIVERY,
-            "Buyer has alr gotten item"
-        );
-        emit sellerGetsFundsAfterBuyerConfirmsDelivery(msg.sender, msg.value);
-        seller.transfer(address(this).balance);
-        currentState = State.COMPLETED_TX;
-    }
-
-    function refundFundsbySeller() private {
-        //
-    }
-
-    function getCurrentState() public view returns (State) {
-        return currentState;
     }
 }
