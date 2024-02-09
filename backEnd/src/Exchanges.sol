@@ -85,10 +85,11 @@ contract EscrowService {
         // Increase the balance within the contract
         balances[address(this)] += itemPrice;
 
-        // Decrease the sender's balance
-        balances[msg.sender] -= itemPrice;
-
         emit buyerPaid(msg.sender, msg.value);
+        (bool success, ) = msg.sender.call{value: itemPrice}("");
+        require(success, "Transfer failed");
+
+        balances[msg.sender] -= itemPrice; // Decrease the sender's balance
         currentState = State.AWAITING_DELIVERY;
     }
 
@@ -115,7 +116,6 @@ contract EscrowService {
         );
 
         emit arbitratorPaid(msg.sender, arbitratorFees);
-
         arbitrator.transfer(arbitratorFees);
     }
 
