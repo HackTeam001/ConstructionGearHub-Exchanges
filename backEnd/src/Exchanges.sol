@@ -5,7 +5,9 @@ pragma solidity ^0.8.13;
 import "lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
 /*@dev This Escrow contract holds the funds until the buyer confirms receipt and satisfaction, at which point the funds are released to the seller👇*/
+//🌟🌟🌟Our Escrow🌟🌟🌟//
 contract EscrowService {
+    event contractReceivesCash(address indexed from, uint indexed amountPaid);
     event buyerPaid(address indexed buyer, uint indexed amountPaid);
     event sellerGetsFundsAfterBuyerConfirmsDelivery(
         address indexed buyer,
@@ -71,26 +73,29 @@ contract EscrowService {
         arbitratorFees = (_itemPrice * 4) / 100;
     }
 
-    function itemFinalPrice() private returns (uint) {
-        finalPrice = itemPrice - arbitratorFees;
-        return finalPrice;
-    }
-
     //NON REENTRANT MODIFIER NEEDED!!!!!
     function depositToThisContract() public payable {
-        require(msg.sender == buyer, "Address depositing is not buyer");
+        require(
+            msg.sender == buyer,
+            "Address depositing is not the buyer's address"
+        );
         require(currentState == State.AWAITING_PAYMENT, "Buyer has alr Paid");
-        require(msg.value == itemPrice, "Incorrect amount sent");
+        require(
+            msg.value == itemPrice,
+            string(
+                abi.encodePacked(
+                    "Incorrect amount sent. Price to send is ",
+                    itemPrice
+                )
+            )
+        );
 
-        // Increase the balance within the contract
-        balances[address(this)] += itemPrice;
+        emit contractReceivesCash(msg.sender, msg.value);
+        balances[address(this)] += itemPrice; // Increase the balance within the contract
 
         emit buyerPaid(msg.sender, msg.value);
-        (bool success, ) = msg.sender.call{value: itemPrice}("");
-        require(success, "Transfer failed");
-
-        balances[msg.sender] -= itemPrice; // Decrease the sender's balance
-        currentState = State.AWAITING_DELIVERY;
+        balances[msg.sender] -= itemPrice; // Decrease the buyer's balance
+        currentState = State.AWAITING_DELIVERY; //update state
     }
 
     function confirmDelivery() internal {
@@ -123,6 +128,11 @@ contract EscrowService {
         return currentState;
     }
 
+    function itemFinalPrice() private returns (uint) {
+        finalPrice = itemPrice - arbitratorFees;
+        return finalPrice;
+    }
+
     function getBuyerDetails() private view returns (buyerDetails memory) {
         return buyerCompleteDetails[buyer];
     }
@@ -148,7 +158,7 @@ contract EscrowService {
     }
 }
 
-//OUR INTERFACE 👇👇
+////////🌟🌟OUR INTERFACE 🌟🌟👇👇////////////
 interface IEscrow {
     function depositToThisContract() external payable;
 
@@ -168,8 +178,9 @@ contract ExchangeSite is ReentrancyGuard {
     error itemDoesntExist();
 
     //----Events----//
-    event ownerOpenedShop();
+    event ownerOpenedShop(uint newShopID, string name);
     event ownerClosedShop();
+    event ownerForeverClosedShop(uint _shopID);
 
     event itemAdded(
         uint indexed shopID,
@@ -177,10 +188,12 @@ contract ExchangeSite is ReentrancyGuard {
         string description,
         uint price
     );
-    event itemDeleted(uint shopID);
+    event itemDeleted(uint itemID);
+    event itemUnlisted(uint itemID);
 
-    event itemUnlisted(uint shopID);
+    event buyerBought(address buyer, uint value);
 
+    IEscrow private escrowService;
     //Storage variables
     address private s_owner;
 
@@ -188,22 +201,21 @@ contract ExchangeSite is ReentrancyGuard {
     bool public s_isOpen;
 
     uint private shopID;
+    uint private newShopID;
     uint public s_itemID;
 
     mapping(address => Shop) s_availableShops;
     mapping(uint => bool) private s_availableShopIDs;
-    mapping(address => uint[]) public addressToShopIds;
+    mapping(address => uint[]) public addressToShopIds; //an address can have many shops
 
-    mapping(uint => Item[]) public shopIDToItems;
+    mapping(uint => Item[]) public shopIDToItems; //shop with a list of all available items
     mapping(uint => mapping(uint => uint)) public itemsIndex;
-    /*@dev Different items in our shop recognized by unique uint shopID */
-    mapping(uint => Item) private items;
+    mapping(uint => Item) private items; //Different items in our shop recognized by unique uint shopID
+    mapping(string => Item) itemNames; //used when searching for an item? Every item with that name should show up
 
-    //used when searching for an item?
-    mapping(string => Item) itemNames;
-
-    constructor() {
+    constructor(address _escrow) {
         s_owner = msg.sender;
+        escrowService = IEscrow(_escrow);
     }
 
     struct Shop {
@@ -261,11 +273,15 @@ contract ExchangeSite is ReentrancyGuard {
 
     /*@dev button opens shop*/
     function openShop(string memory _name) private onlyOwner nonReentrant {
-        emit ownerOpenedShop();
-        uint newShopID = shopID + 1;
+        require(
+            s_availableShops[msg.sender].shopID == 0,
+            "Shop already exists for this owner"
+        );
+        newShopID = shopID + 1;
         while (s_availableShopIDs[newShopID]) {
             newShopID++;
         }
+        emit ownerOpenedShop(newShopID, _name);
         Shop memory newShop = Shop(msg.sender, _name, newShopID, true);
         s_availableShops[msg.sender] = newShop;
 
@@ -282,10 +298,15 @@ contract ExchangeSite is ReentrancyGuard {
     ) private onlyOwner shopExists(_shopID) nonReentrant {
         emit ownerClosedShop();
         s_availableShops[msg.sender].isOpen = false;
-        s_availableShopIDs[_shopID] = false;
     }
 
-    function foreverCloseShop(uint _shopID) private onlyOwner {}
+    function foreverCloseShop(
+        uint _shopID
+    ) private onlyOwner shopExists(_shopID) {
+        emit ownerForeverClosedShop(_shopID);
+        delete s_availableShopIDs[_shopID];
+        delete addressToShopIds[msg.sender][_shopID];
+    }
 
     /*@dev button adds item to shop*/
     function addItem(
@@ -354,16 +375,8 @@ contract ExchangeSite is ReentrancyGuard {
         require(msg.value == items[_itemID].price, "Insufficient funds");
         require(msg.sender != s_owner, "Shop owner cannot buy their own item");
 
-        //transfer happens via escrow contract (WILL MAKE THIS!!)
-    }
-
-    /*@dev Users use this button to buy an item from the shop*/
-    function hireItem(
-        uint _itemID,
-        uint _shopID
-    ) external view isListed(_itemID) shopIsOpen(_shopID) {
-        require(s_isOpen, "Shop is not open");
-
-        //perform hiring via escrow contract
+        //transfer happens via escrow contract (CHECK THIS!!)
+        emit buyerBought(msg.sender, msg.value);
+        escrowService.depositToThisContract{value: msg.value}();
     }
 }
