@@ -13,8 +13,9 @@ contract EscrowService {
         address indexed buyer,
         uint indexed amountSent
     );
+    event sellerPaid(uint amount);
 
-    event arbitratorPaid(address arbitrator);
+    event arbitratorPaid(uint amount);
 
     enum State {
         AWAITING_PAYMENT,
@@ -53,6 +54,7 @@ contract EscrowService {
         require(msg.value == _itemPrice, "Incorrect total amount sent");
 
         Transaction storage newTransaction = transactions[msg.sender];
+        emit contractReceivesCash(msg.sender, msg.value);
         newTransaction.buyer = _buyer;
         newTransaction.arbitrator = _arbitrator;
         newTransaction.seller = _seller;
@@ -60,8 +62,6 @@ contract EscrowService {
         newTransaction.arbitratorFees = (_itemPrice * 4) / 100;
         newTransaction.finalPrice = _itemPrice - newTransaction.arbitratorFees;
         newTransaction.currentState = State.AWAITING_PAYMENT;
-
-        emit contractReceivesCash(msg.sender, msg.value);
     }
 
     //NON REENTRANT MODIFIER NEEDED!??!!!
@@ -74,7 +74,6 @@ contract EscrowService {
         require(msg.value == transaction.itemPrice, "Incorrect amount sent");
 
         emit buyerPaid(msg.sender, msg.value);
-
         transaction.currentState = State.AWAITING_DELIVERY;
     }
 
@@ -89,9 +88,10 @@ contract EscrowService {
             msg.sender,
             transaction.finalPrice
         );
+        emit sellerPaid(transaction.finalPrice);
         payable(transaction.seller).transfer(transaction.finalPrice);
 
-        emit arbitratorPaid(transaction.arbitrator);
+        emit arbitratorPaid(transaction.arbitratorFees);
         payable(transaction.arbitrator).transfer(transaction.arbitratorFees);
 
         transaction.currentState = State.COMPLETED_TX;
@@ -107,7 +107,7 @@ contract EscrowService {
             "Transaction is ongoing. Buyer yet to confirm delivery"
         );
 
-        emit arbitratorPaid(msg.sender);
+        emit arbitratorPaid(transactions[msg.sender].arbitratorFees);
         transactions[msg.sender].arbitrator.transfer(
             transactions[msg.sender].arbitratorFees
         );
