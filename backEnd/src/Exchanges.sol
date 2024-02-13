@@ -52,7 +52,7 @@ contract EscrowService {
         uint _itemPrice
     ) external payable {
         require(msg.value == _itemPrice, "Incorrect total amount sent");
-
+        _buyer = payable(msg.sender);
         Transaction storage newTransaction = transactions[msg.sender];
         emit contractReceivesCash(msg.sender, msg.value);
         newTransaction.buyer = _buyer;
