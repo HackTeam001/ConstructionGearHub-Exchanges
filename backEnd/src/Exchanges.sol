@@ -14,7 +14,7 @@ contract EscrowService {
         uint indexed amountSent
     );
 
-    event arbitratorPaid(address indexed arbitrator, uint indexed fees);
+    event arbitratorPaid(address arbitrator);
 
     enum State {
         AWAITING_PAYMENT,
@@ -22,151 +22,125 @@ contract EscrowService {
         COMPLETED_TX
     }
 
-    State private currentState;
-
-    address payable private buyer;
-    address payable private arbitrator;
-    address payable private seller;
-
-    uint private itemPrice;
-    uint private arbitratorFees; //Arbitrator gets 5% for handling the tx
-    uint private finalPrice;
-
-    mapping(address => uint) private balances;
-
-    mapping(address => buyerDetails) buyerCompleteDetails;
-    mapping(address => arbitratorDetails) arbitratorCompleteDetails;
-    mapping(address => sellerDetails) sellerCompleteDetails;
-
-    struct buyerDetails {
-        string name;
-        string location;
-        string emailAddress;
-        uint phoneNumber;
+    struct Transaction {
+        address payable buyer;
+        address payable arbitrator;
+        address payable seller;
+        uint itemPrice;
+        uint arbitratorFees;
+        uint finalPrice;
+        State currentState;
     }
 
-    struct sellerDetails {
-        string name;
-        string location;
-        string emailAddress;
-        uint phoneNumber;
+    mapping(address => Transaction) public transactions; //buyer to transaction
+
+    constructor() {}
+
+    modifier onlyBuyer() {
+        require(
+            msg.sender == transactions[msg.sender].buyer,
+            "Only buyer can call this function"
+        );
+        _;
     }
 
-    struct arbitratorDetails {
-        string name;
-        string location;
-        string emailAddress;
-        uint phoneNumber;
-    }
-
-    constructor(
+    function createTransaction(
         address payable _buyer,
         address payable _arbitrator,
         address payable _seller,
         uint _itemPrice
-    ) payable {
-        currentState = State.AWAITING_PAYMENT;
-        buyer = _buyer;
-        seller = _seller;
-        arbitrator = _arbitrator;
+    ) external payable {
+        require(msg.value == _itemPrice, "Incorrect total amount sent");
 
-        arbitratorFees = (_itemPrice * 4) / 100;
-    }
-
-    //NON REENTRANT MODIFIER NEEDED!!!!!
-    function depositToThisContract() public payable {
-        require(
-            msg.sender == buyer,
-            "Address depositing is not the buyer's address"
-        );
-        require(currentState == State.AWAITING_PAYMENT, "Buyer has alr Paid");
-        require(
-            msg.value == itemPrice,
-            string(
-                abi.encodePacked(
-                    "Incorrect amount sent. Price to send is ",
-                    itemPrice
-                )
-            )
-        );
+        Transaction storage newTransaction = transactions[msg.sender];
+        newTransaction.buyer = _buyer;
+        newTransaction.arbitrator = _arbitrator;
+        newTransaction.seller = _seller;
+        newTransaction.itemPrice = _itemPrice;
+        newTransaction.arbitratorFees = (_itemPrice * 4) / 100;
+        newTransaction.finalPrice = _itemPrice - newTransaction.arbitratorFees;
+        newTransaction.currentState = State.AWAITING_PAYMENT;
 
         emit contractReceivesCash(msg.sender, msg.value);
-        balances[address(this)] += itemPrice; // Increase the balance within the contract
+    }
+
+    //NON REENTRANT MODIFIER NEEDED!??!!!
+    function depositToThisContract() external payable onlyBuyer {
+        Transaction storage transaction = transactions[msg.sender];
+        require(
+            transaction.currentState == State.AWAITING_PAYMENT,
+            "Buyer has already paid"
+        );
+        require(msg.value == transaction.itemPrice, "Incorrect amount sent");
 
         emit buyerPaid(msg.sender, msg.value);
-        balances[msg.sender] -= itemPrice; // Decrease the buyer's balance
-        currentState = State.AWAITING_DELIVERY; //update state
+
+        transaction.currentState = State.AWAITING_DELIVERY;
     }
 
-    function confirmDelivery() internal {
-        require(msg.sender == buyer, "Address confirming is not buyer");
+    function confirmDelivery() external onlyBuyer {
+        Transaction storage transaction = transactions[msg.sender];
         require(
-            currentState == State.AWAITING_DELIVERY,
-            "Buyer has alr gotten item"
+            transaction.currentState == State.AWAITING_DELIVERY,
+            "Transaction is not in correct state"
         );
 
-        emit sellerGetsFundsAfterBuyerConfirmsDelivery(msg.sender, finalPrice);
-        seller.transfer(finalPrice);
-        currentState = State.COMPLETED_TX;
+        emit sellerGetsFundsAfterBuyerConfirmsDelivery(
+            msg.sender,
+            transaction.finalPrice
+        );
+        payable(transaction.seller).transfer(transaction.finalPrice);
+
+        emit arbitratorPaid(transaction.arbitrator);
+        payable(transaction.arbitrator).transfer(transaction.arbitratorFees);
+
+        transaction.currentState = State.COMPLETED_TX;
     }
 
-    function withdrawToArbitrator() internal {
+    function withdrawToArbitrator() external {
         require(
-            msg.sender == arbitrator,
+            msg.sender == transactions[msg.sender].arbitrator,
             "Address confirming is not arbitrator"
         );
         require(
-            currentState == State.COMPLETED_TX,
+            transactions[msg.sender].currentState == State.COMPLETED_TX,
             "Transaction is ongoing. Buyer yet to confirm delivery"
         );
 
-        emit arbitratorPaid(msg.sender, arbitratorFees);
-        arbitrator.transfer(arbitratorFees);
+        emit arbitratorPaid(msg.sender);
+        transactions[msg.sender].arbitrator.transfer(
+            transactions[msg.sender].arbitratorFees
+        );
     }
 
-    function getCurrentState() public view returns (State) {
-        return currentState;
-    }
-
-    function itemFinalPrice() private returns (uint) {
-        finalPrice = itemPrice - arbitratorFees;
-        return finalPrice;
-    }
-
-    function getBuyerDetails() private view returns (buyerDetails memory) {
-        return buyerCompleteDetails[buyer];
-    }
-
-    function getArbitratorDetails()
-        private
+    function getTransactionDetails()
+        external
         view
-        returns (arbitratorDetails memory)
+        returns (Transaction memory)
     {
-        return arbitratorCompleteDetails[arbitrator];
-    }
-
-    function getSellerDetails() private view returns (sellerDetails memory) {
-        return sellerCompleteDetails[seller];
-    }
-
-    function getItemPrice() private view returns (uint) {
-        return itemPrice;
-    }
-
-    function getArbitratorFees() private view returns (uint) {
-        return arbitratorFees;
+        return transactions[msg.sender];
     }
 }
 
 ////////🌟🌟OUR INTERFACE 🌟🌟👇👇////////////
 interface IEscrow {
+    struct Transaction {
+        address payable buyer;
+        address payable arbitrator;
+        address payable seller;
+        uint itemPrice;
+        uint arbitratorFees;
+        uint finalPrice;
+        EscrowService.State currentState;
+    }
+
     function depositToThisContract() external payable;
 
     function confirmDelivery() external;
 
     function withdrawToArbitrator() external;
 
-    function getCurrentState() external view returns (EscrowService.State);
+    function getTransactionDetails() external view returns (Transaction memory);
 }
 
 //OUR MAIN CONTRACT 👇👇
@@ -195,23 +169,23 @@ contract ExchangeSite is ReentrancyGuard {
 
     IEscrow private escrowService;
     //Storage variables
-    address private s_owner;
+    address public s_owner;
 
     Shop[] public s_shops;
     bool public s_isOpen;
 
-    uint private shopID;
-    uint private newShopID;
+    uint public shopID;
+    uint public newShopID;
     uint public s_itemID;
 
-    mapping(address => Shop) s_availableShops;
-    mapping(uint => bool) private s_availableShopIDs;
+    mapping(address => Shop) public s_availableShops;
+    mapping(uint => bool) public s_availableShopIDs;
     mapping(address => uint[]) public addressToShopIds; //an address can have many shops
 
     mapping(uint => Item[]) public shopIDToItems; //shop with a list of all available items
     mapping(uint => mapping(uint => uint)) public itemsIndex;
-    mapping(uint => Item) private items; //Different items in our shop recognized by unique uint shopID
-    mapping(string => Item) itemNames; //used when searching for an item? Every item with that name should show up
+    mapping(uint => Item) public items; //Different items in our shop recognized by unique uint shopID
+    mapping(string => Item) public itemNames; //used when searching for an item? Every item with that name should show up
 
     constructor(address _escrow) {
         s_owner = msg.sender;
@@ -256,7 +230,7 @@ contract ExchangeSite is ReentrancyGuard {
         _;
     }
 
-    /*@dev function requires item to be listed in order to pass through*/
+    /*@dev function that uses this requires item to be listed in order to pass through*/
     modifier isListed(uint _itemID) {
         if (items[_itemID].listed == false) {
             revert itemNotListed();
@@ -272,7 +246,7 @@ contract ExchangeSite is ReentrancyGuard {
     }
 
     /*@dev button opens shop*/
-    function openShop(string memory _name) private onlyOwner nonReentrant {
+    function openShop(string memory _name) external onlyOwner nonReentrant {
         require(
             s_availableShops[msg.sender].shopID == 0,
             "Shop already exists for this owner"
@@ -292,17 +266,18 @@ contract ExchangeSite is ReentrancyGuard {
         shopIDToItems[newShopID] = new Item[](0);
     }
 
-    /*@dev button opens shop*/
+    /*@dev button closes shop*/
     function closeShop(
         uint _shopID
-    ) private onlyOwner shopExists(_shopID) nonReentrant {
+    ) external onlyOwner shopExists(_shopID) nonReentrant {
         emit ownerClosedShop();
         s_availableShops[msg.sender].isOpen = false;
     }
 
+    /*@dev button forever closes shop, ceases to exist*/
     function foreverCloseShop(
         uint _shopID
-    ) private onlyOwner shopExists(_shopID) {
+    ) external onlyOwner shopExists(_shopID) {
         emit ownerForeverClosedShop(_shopID);
         delete s_availableShopIDs[_shopID];
         delete addressToShopIds[msg.sender][_shopID];
@@ -314,7 +289,7 @@ contract ExchangeSite is ReentrancyGuard {
         string memory _name,
         string memory _description,
         uint256 _price
-    ) private onlyOwner nonReentrant {
+    ) external onlyOwner nonReentrant {
         require(items[s_itemID].price == 0, "Item with the same itemID exists");
         require(_price > 0, "Set item price");
 
@@ -340,7 +315,7 @@ contract ExchangeSite is ReentrancyGuard {
     function deleteItem(
         uint _shopID,
         uint _itemID
-    ) private onlyOwner itemExists(_itemID) nonReentrant {
+    ) external onlyOwner itemExists(_itemID) nonReentrant {
         emit itemDeleted(_itemID);
         delete items[_itemID];
 
@@ -362,7 +337,7 @@ contract ExchangeSite is ReentrancyGuard {
     /*@dev button unlists item from shop until it becomes available*/
     function unlistItem(
         uint _itemID
-    ) private onlyOwner itemExists(_itemID) nonReentrant {
+    ) external onlyOwner itemExists(_itemID) nonReentrant {
         emit itemUnlisted(_itemID);
         items[_itemID].listed = false;
     }
