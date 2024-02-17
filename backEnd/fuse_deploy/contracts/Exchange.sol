@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-
 /*@dev This Escrow contract holds the funds until the buyer confirms receipt and satisfaction, at which point the funds are released to the seller👇*/
 //🌟🌟🌟Our Escrow🌟🌟🌟//
 contract EscrowService {
@@ -20,7 +19,6 @@ contract EscrowService {
     event arbitratorPaid(uint amount);
 
      address private e_owner;
-
 
     enum State {
         AWAITING_PAYMENT,
@@ -40,6 +38,15 @@ contract EscrowService {
     }
 
     mapping(uint => Transaction) public transactions; //buyer to transaction
+    
+    
+    // Array to store transaction IDs
+    uint[] public transactionIds;
+    mapping(uint => bool) public usedTransactionIDs;
+
+    // Event emitted when a transaction is created
+    event TransactionCreated(uint transactionId, address buyer, address arbitrator, address seller);
+
 
     constructor() {
         e_owner = msg.sender;
@@ -60,21 +67,33 @@ contract EscrowService {
         uint _itemPrice,
         uint _transaction
     ) external  {
+        require(msg.sender != tx.origin, "Function must be called from a contract");
         require(_arbitrator == e_owner, "Action not permitted");
-        _buyer = payable(msg.sender);
+        require(!usedTransactionIDs[_transaction], "Transaction with the same ID exists");
+
+        _buyer = payable(tx.origin);
         Transaction storage newTransaction = transactions[_transaction];
-        emit contractTransactionInitiated(msg.sender,_itemPrice,_seller);
+        emit contractTransactionInitiated(tx.origin,_itemPrice,_seller);
         newTransaction.buyer = _buyer;
         newTransaction.arbitrator = _arbitrator;
         newTransaction.seller = _seller;
         newTransaction.itemPrice = _itemPrice;
-        newTransaction.arbitratorFees = (_itemPrice * 4) / 100;
-        newTransaction.finalPrice = _itemPrice - newTransaction.arbitratorFees;
+        newTransaction.arbitratorFees = (_itemPrice * 4) / 100; // Integer division
+        newTransaction.finalPrice = _itemPrice - (_itemPrice * 4) / 100; // Floating-point division
         newTransaction.currentState = State.AWAITING_PAYMENT;
+
+        // Add the transaction ID to the array
+        transactionIds.push(_transaction);
+        usedTransactionIDs[_transaction] = true;
+
+        // Emit an event
+        emit TransactionCreated(_transaction, _buyer, _arbitrator, _seller);
+
     }
 
     //NON REENTRANT MODIFIER NEEDED!??!!!
     function depositToThisContract( uint _transaction) external payable  {
+        
         Transaction storage transaction = transactions[_transaction];
         require(
             transaction.currentState == State.AWAITING_PAYMENT,
@@ -86,7 +105,8 @@ contract EscrowService {
         transaction.currentState = State.AWAITING_DELIVERY;
     }
 
-    function confirmDelivery(uint _transaction) external {
+    function confirmDelivery(uint _transaction) external onlyBuyer(_transaction) { 
+
         Transaction storage transaction = transactions[_transaction];
         require(
             transaction.currentState == State.AWAITING_DELIVERY,
@@ -129,6 +149,25 @@ contract EscrowService {
     {
         return transactions[_transaction];
     }
+
+    function getAllTransactions() external view returns (
+        Transaction[] memory allTransactions
+    ) {
+        // Initialize an array to hold all transactions
+        allTransactions = new Transaction[](transactionIds.length);
+
+        // Iterate over each transaction ID and fetch its details
+        for (uint i = 0; i < transactionIds.length; i++) {
+            uint transactionId = transactionIds[i];
+            Transaction storage transaction = transactions[transactionId];
+
+            allTransactions[i] = transaction;
+        }
+
+        return allTransactions;
+    }
+
+
 }
 
 ////////🌟🌟OUR INTERFACE 🌟🌟👇👇////////////
@@ -213,7 +252,15 @@ contract ExchangeSite is ReentrancyGuard {
     mapping(uint => mapping(uint => uint)) public itemsIndex;
     mapping(uint => Item) public items; //Different items in our shop recognized by unique uint shopID
     mapping(string => Item) public itemNames; //used when searching for an item? Every item with that name should show up
+
     mapping(uint => Shop) public  shops;
+
+    // check for existing item IDs.
+    uint[] public shopIds;
+    uint[] public itemIds;
+    // track ids 
+    mapping(uint => bool) public usedItemIDs;
+    mapping(uint => bool) public usedShopIDs;
 
     constructor(address _escrow) {
         c_owner = msg.sender;
@@ -293,6 +340,7 @@ contract ExchangeSite is ReentrancyGuard {
             "Shop already exists for this owner"
         );
         newShopID = shopID + 1;
+        shopID++;
         while (s_availableShopIDs[newShopID]) {
             newShopID++;
         }
@@ -303,6 +351,9 @@ contract ExchangeSite is ReentrancyGuard {
 
         // Add the new shop ID to the address's list of shop IDs to allow an address to open multiple shops without creating duplicate entries
         addressToShopIds[msg.sender].push(newShopID);
+
+        shopIds.push(newShopID);
+        usedShopIDs[newShopID] = true;
 
         // Initialize an empty array of items for the new shop
         //shopIDToItems[newShopID] = new Item[](0);
@@ -333,11 +384,13 @@ contract ExchangeSite is ReentrancyGuard {
         string memory _item_im,
         uint256 _price
     ) external shopOwner(_shopID) nonReentrant shopExists(_shopID) {
-        require(items[s_itemID].price == 0, "Item with the same itemID exists");
         require(_price > 0, "Set item price");
 
-
         s_itemID++;
+
+        //  check existence of the id
+        require(!usedItemIDs[s_itemID], "Item with the same itemID exists");
+
         emit itemAdded(s_itemID, _name, _description, _price);
         Item memory newItemAdded = Item(
             _name,
@@ -348,6 +401,11 @@ contract ExchangeSite is ReentrancyGuard {
             true
         );
         items[s_itemID] = newItemAdded;
+
+
+        usedItemIDs[s_itemID] = true;
+
+        itemIds.push(s_itemID);
 
         // Add the new item to the shop's array of items
         shopIDToItems[_shopID].push(newItemAdded);
@@ -426,6 +484,24 @@ contract ExchangeSite is ReentrancyGuard {
 
     function getItemByID(uint _itemID) external view returns (Item memory) {
     return items[_itemID];
+    }
+
+    // Function to get details of all shops
+    function getAllShops() external view returns (Shop[] memory) {
+        Shop[] memory allShops = new Shop[](shopIds.length);
+        for (uint i = 0; i < shopIds.length; i++) {
+            allShops[i] = shops[shopIds[i]];
+        }
+        return allShops;
+    }
+
+    // Function to get details of all items
+    function getAllItems() external view returns (Item[] memory) {
+        Item[] memory allItems = new Item[](itemIds.length);
+        for (uint i = 0; i < itemIds.length; i++) {
+            allItems[i] = items[itemIds[i]];
+        }
+        return allItems;
     }
 
 }

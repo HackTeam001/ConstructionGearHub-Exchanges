@@ -5,10 +5,24 @@ import logo from '../../assets/logo.png'
 import {  Link } from "react-router-dom";
 import { useWallet } from '../../contexts/WalletContex';
 
-const Menu:React.FC = () => (
+interface menuProps{
+  account:string[];
+}
+
+const Menu:React.FC<menuProps> = ({account}) => (
   <>
      <Link to="/items"> <p>Explore</p> </Link>
      <Link to="/my-items"> <p> My Items</p> </Link>
+    {account ? (
+              <>
+            <Link to="/create-shop"> 
+              <p>Create Shop</p>
+            </Link>
+              </>
+          ) : (
+              <></>
+        )}
+        <Link to="/transactions"> <p> Transactions</p> </Link>
   </>
  )
 
@@ -38,7 +52,7 @@ const Menu:React.FC = () => (
         </div>
         <div className="navbar-links_container">
           <input type="text" placeholder='Search Item Here' autoFocus={true} />
-         <Menu />
+         <Menu account={account}/>
         </div>
       </div>
       <div className="navbar-sign">

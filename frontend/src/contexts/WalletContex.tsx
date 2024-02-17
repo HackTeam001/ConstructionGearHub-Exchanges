@@ -37,7 +37,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     useEffect(() => {
         const connectWallet = async () => {
 
-            const contractAddress = "0x94A8cD01954CdD619EcB6AEaFeC3F8e2450a5360";
+            const contractAddress = "0xd7B8381C9683dB3E7Ca2405cdC2246c82825c51d";
             const contractABI = contracAbi.abi;
 
             try {
@@ -78,7 +78,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }, []);
 
     const connectWallet = async () => {
-        const contractAddress = "0x9e2F9901BFBD936086eC30D44a5D2c55CEeac785";
+        const contractAddress = "0xd7B8381C9683dB3E7Ca2405cdC2246c82825c51d";
         const contractABI = contracAbi.abi;
 
         try {
