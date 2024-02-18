@@ -1,4 +1,4 @@
-import React from 'react';
+import React,{useEffect,useState} from 'react';
 import './item.css'
 import creator from '../../assets/profile.png'
 import item from '../../assets/item1.jpg'
@@ -10,117 +10,136 @@ import gears4 from '../../assets/gear4.jpg'
 import gears5 from '../../assets/gear5.jpg'
 import { Link } from 'react-router-dom';
 import { id } from 'ethers/lib/utils';
+import { useWallet } from '../../contexts/WalletContex';
+import { ethers } from 'ethers';
+import "w3-css/w3.css"
+import { formatEthereumAddress } from '../../utils/itils';
+
+
+interface Shop{
+  address: string,
+  name: string,
+  shop_profile: string;
+  shopID: number;
+  isOpen: boolean;
+}
 
 const MyItems:React.FC = () => {
 
   const id = 1;
 
+  const { provider, account, connectWallet, disconnectWallet,contract,signer } = useWallet();
+
+
+
+  const[shop , setShop] = useState([]);
+  const[shopItems,setItemShops] = useState([])
+
+
+  console.log(account)
+
+     
+
+  useEffect(() => {
+    const fetchData = async () => {
+
+      console.log(contract,account)
+        if (account && contract) {
+
+          try {
+            const user_shop = await contract.getShopDetails(account[0]);
+
+            console.log(user_shop)
+
+
+            setShop(user_shop);
+
+            console.log(shop)
+
+            const items = await contract.getItemsForShop(Number(user_shop[3]));
+
+            setItemShops(items);
+
+            console.log(items)
+
+          }catch(e){
+              console.log(e)
+          }
+          
+
+        }
+    };
+
+    fetchData(); // Call the function inside useEffect
+
+}, [contract,account,setShop]); 
 
 
   return(
     <>
+    { shop ? (
+
+      <>
       <div className='item section__padding'>
         <div className="item-image">
-          <img src='' alt="item" />
+          <img src={shop[2]} alt="item" />
         </div>
           <div className="item-content">
             <div className="item-content-title">
-              <h1>Logistics Flyer</h1>
-              <p>From <span>4.5 ETH</span> ‧ 20 of 25 available</p>
+              <h1 className='w3-text-green'>{shop[1]}</h1>
             </div>
             <div className="item-content-creator">
               <div><p>Seller</p></div>
               <div>
                 <img src={creator} alt="creator" />
-                <p>Rian Leon </p>
+                <p>{formatEthereumAddress(shop[0])} </p>
               </div>
             </div>
             <div className="item-content-detail">
-              <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book</p>
+              
             </div>
             <div className="item-content-buy">
-              <button className="primary-btn"><Link to={`shop/${id}`}>Add Item</Link></button>
-              <button className="secondary-btn">Make Offer</button>
+              <button className="primary-btn"><Link to={`shop/${shop[3]}`}>Add Item</Link></button>
+            
             </div>
           </div>
       </div>
       <div className='gears section__padding'>
       <div className="gears-container">
       <div className="gears-container-card">
-          <div className="card-column" >
-            <div className="gears-card">
-              <div className="gears-card-top">
-                <img src={gears1} alt=""/>
-              <Link to={`/post/123`}>
-              <p className="gears-title">Logistics Flyer</p>
-              </Link>
-              </div>
-              <div className="gears-card-bottom">
-                <p>1.25 <span>ETH</span></p>
-                <p> <AiFillHeart /> 92</p>
-              </div>
-            </div>
-          </div>
-          <div className="card-column" >
-            <div className="gears-card">
-              <div className="gears-card-top">
-                <img src={gears2} alt="" />
-              <Link to={`/post/123`}>
-              <p className="gears-title">Construction Machine</p>
-              </Link>
-              </div>
-              <div className="gears-card-bottom">
-                <p>0.20 <span>ETH</span></p>
-                <p> <AiFillHeart /> 25</p>
-              </div>
-            </div>
-          </div>
-          <div className="card-column" >
-            <div className="gears-card">
-              <div className="gears-card-top">
-                <img src={gears3} alt="" />
-              <Link to={`/post/123`}>
-              <p className="gears-title">Dozer</p>
-              </Link>
-              </div>
-              <div className="gears-card-bottom">
-                <p>0.55 <span>ETH</span></p>
-                <p> <AiFillHeart /> 55</p>
-              </div>
-            </div>
-          </div>
-          <div className="card-column" >
-            <div className="gears-card">
-              <div className="gears-card-top">
-                <img src={gears4} alt="" />
-              <Link to={`/post/123`}>
-              <p className="gears-title">Construction Machine</p>
-              </Link>
-              </div>
-              <div className="gears-card-bottom">
-                <p>0.87 <span>ETH</span></p>
-                <p> <AiFillHeart /> 82</p>
-              </div>
-            </div>
-          </div>
-          <div className="card-column" >
-            <div className="gears-card">
-              <div className="gears-card-top">
-                <img src={gears5} alt="" />
-              <Link to={`/post/123`}>
-              <p className="gears-title">Construction Truck</p>
-              </Link>
-              </div>
-              <div className="gears-card-bottom">
-                <p>0.09 <span>ETH</span></p>
-                <p> <AiFillHeart /> 22</p>
-              </div>
-            </div>
-          </div>
+        <h2 className='w3-text-blue'> Your Items </h2>
+      {shopItems && shopItems.map((item) => (
+                <div className="card-column" key={Number(item[1])}>
+                    <div className="gears-card">
+                        <div className="gears-card-top">
+                            <img src={item[4]} alt="" />
+                            <Link to={`/item/${Number(item[1])}`}>
+                                <p className="gears-title">{item[0]}</p>
+                            </Link>
+                        </div>
+                        <div className="gears-card-bottom">
+                            <p>{ethers.utils.formatEther(ethers.BigNumber.from(item[5]))}<span>ETH</span></p>
+                            {/* Assuming the heart icon is for likes */}
+                            <p><AiFillHeart /> 92</p> 
+                        </div>
+                    </div>
+                </div>
+            ))}
         </div>
         </div>
         </div>
       </>
+
+    ) :
+    (
+      <div className='item section__padding'>
+        <h3 className='w3-text-green'> Click <span className='w3-text-blue'> Create Shop</span> to create shop</h3>
+      </div>
+    )
+
+    }
+
+  </>
   )
 };
 

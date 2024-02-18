@@ -25,7 +25,7 @@
 }
 .card-column{
   float: left;
-  width: 20%;
+  max-width: 300px;
 }
 .gears-card{
   background: #2A2D3A;
@@ -86,7 +86,7 @@ font-weight: normal;
 
 @media screen and (max-width: 1440px) {
   .card-column {
-    width: 25%;
+
     
   }
 }
@@ -94,14 +94,14 @@ font-weight: normal;
 
 @media screen and (max-width: 1200px) {
   .card-column {
-    width: 33.33%;
+
     
   }
 }
 
 @media screen and (max-width: 900px) {
   .card-column {
-    width: 50%;
+
     
   }
 }

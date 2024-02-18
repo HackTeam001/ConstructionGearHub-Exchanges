@@ -1,6 +1,6 @@
 import './App.css';
 import {Navbar,Footer} from './components'
-import {Home,Profile,Item, Create,Login,Register,Explore,CreateShop,MyItems,CreateItem} from './pages'
+import {Home,Profile,Item, Create,Login,Register,Explore,CreateShop,MyItems,CreateItem,Transaction} from './pages'
 import { Routes, Route } from "react-router-dom";
 
 
@@ -20,6 +20,7 @@ function App() {
             <Route path='/create-shop' element= {<CreateShop />} />
             <Route path='/my-items' element= {<MyItems />} />
             <Route path="/my-items/shop/:id" element={<CreateItem />} />
+            <Route path='/transactions' element= {<Transaction />} />
           </Routes>
       <Footer />
     </div>

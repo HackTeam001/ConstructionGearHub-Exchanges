@@ -69,16 +69,16 @@ const Gears: React.FC<GearsProps> = ({title}) => {
         </div>
         <div className="gears-container-card">
         {items && items.map((item) => (
-                <div className="card-column" key={item.itemId}>
+                <div className="card-column" key={Number(item[1])}>
                     <div className="gears-card">
                         <div className="gears-card-top">
-                            <img src={gears1} alt="" />
-                            <Link to={`/item/${item.itemId}`}>
-                                <p className="gears-title">{item.name}</p>
+                            <img src={item[4]} alt="" />
+                            <Link to={`/item/${Number(item[1])}`}>
+                                <p className="gears-title">{item[0]}</p>
                             </Link>
                         </div>
                         <div className="gears-card-bottom">
-                            <p>{item.price} <span>ETH</span></p>
+                            <p>{ethers.utils.formatEther(ethers.BigNumber.from(item[5]))}<span>ETH</span></p>
                             {/* Assuming the heart icon is for likes */}
                             <p><AiFillHeart /> 92</p> 
                         </div>

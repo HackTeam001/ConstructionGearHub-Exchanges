@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState,type PropsWithChildren } from 'react';
 import { ethers } from 'ethers';
 import contracAbi from '../contractJson/ExchangeSite.json';
+import escrowAbi from '../contractJson/EscrowService.json'
 
 declare global {
     interface Window {
@@ -16,6 +17,7 @@ interface WalletContextType {
     disconnectWallet: () => void;
     contract:ethers.Contract | null;
     signer:any;
+    escrowContract:ethers.Contract | null;
     
 }
 
@@ -32,13 +34,19 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     const [account, setAccount] = useState<string[] | null>(null);
     const [contract, setContract] = useState<ethers.Contract | null>(null);
     const [signer, setSigner] = useState<any>(null);
+    const [escrowContract, setEscrowContract] = useState<ethers.Contract | null>(null);
 
 
     useEffect(() => {
         const connectWallet = async () => {
 
-            const contractAddress = "0xd7B8381C9683dB3E7Ca2405cdC2246c82825c51d";
+            const contractAddress = "0x8A76d58B8F700A32eCDCFBdcAfCbF5E57909EB67";
             const contractABI = contracAbi.abi;
+
+            const escrowContractAddress = "0x0C8577AFf85fBB7d977679FBdeD63258Cf4Cda5b";
+            const escrowContractABI = escrowAbi.abi;
+
+
 
             try {
                 const {ethereum} = window;
@@ -66,6 +74,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
                     //console.log(contract);
                     setContract(contract);
 
+                    const escrowContract = new ethers.Contract(
+                        escrowContractAddress,
+                        escrowContractABI,
+                        signer
+                        );
+                        //console.log(contract);
+                    setEscrowContract(escrowContract);
+
                 } else {
                     console.error("MetaMask not detected");
                 }
@@ -78,8 +94,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }, []);
 
     const connectWallet = async () => {
-        const contractAddress = "0xd7B8381C9683dB3E7Ca2405cdC2246c82825c51d";
+        const contractAddress = "0x8A76d58B8F700A32eCDCFBdcAfCbF5E57909EB67";
         const contractABI = contracAbi.abi;
+
+        const escrowContractAddress = "0x0C8577AFf85fBB7d977679FBdeD63258Cf4Cda5b";
+        const escrowContractABI = escrowAbi.abi;
 
         try {
             const {ethereum} = window;
@@ -109,6 +128,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
                 setContract(contract);
 
+                const escrowContract = new ethers.Contract(
+                    escrowContractAddress,
+                    escrowContractABI,
+                    signer
+                    );
+                    //console.log(contract);
+                setEscrowContract(escrowContract);
+
             } else {
                 console.error("MetaMask not detected");
             }
@@ -127,7 +154,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         connectWallet,
         disconnectWallet,
         contract,
-        signer
+        signer,
+        escrowContract
     };
 
     return <WalletContext.Provider value={contextValue}>{children}</WalletContext.Provider>;

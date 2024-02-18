@@ -38,11 +38,14 @@ contract EscrowService {
     }
 
     mapping(uint => Transaction) public transactions; //buyer to transaction
+
     
     
     // Array to store transaction IDs
     uint[] public transactionIds;
     mapping(uint => bool) public usedTransactionIDs;
+    uint constant DECIMALS = 18;
+    uint constant WEI_PER_ETHER = 1 ether;
 
     // Event emitted when a transaction is created
     event TransactionCreated(uint transactionId, address buyer, address arbitrator, address seller);
@@ -115,13 +118,13 @@ contract EscrowService {
 
         emit sellerGetsFundsAfterBuyerConfirmsDelivery(
             msg.sender,
-            transaction.finalPrice
+            transaction.finalPrice 
         );
-        emit sellerPaid(transaction.finalPrice);
-        payable(transaction.seller).transfer(transaction.finalPrice);
+        emit sellerPaid(transaction.finalPrice );
+        payable(transaction.seller).transfer(transaction.finalPrice );
 
-        emit arbitratorPaid(transaction.arbitratorFees);
-        payable(transaction.arbitrator).transfer(transaction.arbitratorFees);
+        emit arbitratorPaid(transaction.arbitratorFees );
+        payable(transaction.arbitrator).transfer(transaction.arbitratorFees );
 
         transaction.currentState = State.COMPLETED_TX;
     }
@@ -138,7 +141,7 @@ contract EscrowService {
 
         emit arbitratorPaid(transactions[_transaction].arbitratorFees);
         transactions[_transaction].arbitrator.transfer(
-            transactions[_transaction].arbitratorFees
+            transactions[_transaction].arbitratorFees / WEI_PER_ETHER
         );
     }
 
@@ -261,6 +264,7 @@ contract ExchangeSite is ReentrancyGuard {
     // track ids 
     mapping(uint => bool) public usedItemIDs;
     mapping(uint => bool) public usedShopIDs;
+    
 
     constructor(address _escrow) {
         c_owner = msg.sender;
@@ -278,10 +282,12 @@ contract ExchangeSite is ReentrancyGuard {
     struct Item {
         string name;
         uint itemID;
+        uint shopId;
         string description;
         string item_im;
-        uint256 price;
+        uint256 price ;
         bool listed;
+
     }
 
     /*@dev Only the owner has access to the function */
@@ -395,9 +401,10 @@ contract ExchangeSite is ReentrancyGuard {
         Item memory newItemAdded = Item(
             _name,
             s_itemID,
+            shopID,
             _description,
             _item_im,
-            _price,
+            _price ,
             true
         );
         items[s_itemID] = newItemAdded;
@@ -461,9 +468,9 @@ contract ExchangeSite is ReentrancyGuard {
         escrowService.depositToThisContract{value: msg.value}(transactionID);
     }
 
-    function getShopDetails(address _shopAddress) external view returns (address, string memory, uint, bool) {
+    function getShopDetails(address _shopAddress) external view returns (address, string memory,string memory, uint, bool) {
         Shop memory shop = s_availableShops[_shopAddress];
-        return (shop.shopAddress, shop.name, shop.shopID, shop.isOpen);
+        return (shop.shopAddress, shop.name, shop.shop_profile ,shop.shopID, shop.isOpen);
     }
 
     function getShopIDs(address _owner) external view returns (uint[] memory) {
