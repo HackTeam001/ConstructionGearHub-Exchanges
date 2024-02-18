@@ -74,6 +74,26 @@ const Menu:React.FC<menuProps> = ({account}) => (
        
       </div>
       <div className="navbar-menu">
+        {toggleMenu ? 
+        <RiCloseLine  color="#fff" size={27} onClick={() => setToggleMenu(false)} /> 
+        : <RiMenu3Line color="#fff" size={27} onClick={() => setToggleMenu(true)} />}
+        {toggleMenu && (
+          <div className="navbar-menu_container scale-up-center" >
+            <div className="navbar-menu_container-links">
+             <Menu account={account} />
+            </div>
+            <div className="navbar-menu_container-links-sign">
+            {account ? (
+                        <>
+                            {/* <p>Connected Account: {account}</p> */}
+                            <button type='button' onClick={disconnectWallet} className='secondary-btn'>Disconnect Wallet</button>
+                        </>
+                    ) : (
+                        <button type='button' onClick={connectWallet} className='primary-btn'>Connect Wallet</button>
+        )}
+            </div>
+            </div>
+        )}
       </div>
     </div>
   )
