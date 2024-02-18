@@ -40,10 +40,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     useEffect(() => {
         const connectWallet = async () => {
 
-            const contractAddress = "0x8A76d58B8F700A32eCDCFBdcAfCbF5E57909EB67";
+            const contractAddress = "0xD056026E73337B7AAa6008b677734f4f0a473538";
             const contractABI = contracAbi.abi;
 
-            const escrowContractAddress = "0x0C8577AFf85fBB7d977679FBdeD63258Cf4Cda5b";
+            const escrowContractAddress = "0x1bDad645Fb102fc3B74bB4e369C0db09824B4a17";
             const escrowContractABI = escrowAbi.abi;
 
 
@@ -94,10 +94,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }, []);
 
     const connectWallet = async () => {
-        const contractAddress = "0x8A76d58B8F700A32eCDCFBdcAfCbF5E57909EB67";
+        const contractAddress = "0xD056026E73337B7AAa6008b677734f4f0a473538";
         const contractABI = contracAbi.abi;
 
-        const escrowContractAddress = "0x0C8577AFf85fBB7d977679FBdeD63258Cf4Cda5b";
+        const escrowContractAddress = "0x1bDad645Fb102fc3B74bB4e369C0db09824B4a17";
         const escrowContractABI = escrowAbi.abi;
 
         try {

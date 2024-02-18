@@ -126,7 +126,7 @@ const Create = () => {
                 onChange={(e) => setPrice(e.target.value)}
               />
               <select>
-                <option value="ETH">ETH</option>
+                <option value="Fuse">Fuse</option>
               </select>
             </div>
           </div>

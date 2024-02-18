@@ -68,6 +68,8 @@ const Item:React.FC = () => {
     
     }
     setModalIsOpened(false);
+    setShopModalIsOpened(true);
+    
   };
 
      
@@ -115,7 +117,7 @@ const Item:React.FC = () => {
           <div className="item-content">
             <div className="item-content-title">
               <h1>{Item[0]}</h1>
-               <p>{price} <span>ETH</span></p> 
+               <p>{price} <span>Fuse</span></p> 
             </div>
             <div className="item-content-creator">
               <div><p>Seller</p></div>

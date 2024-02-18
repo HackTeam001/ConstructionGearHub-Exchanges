@@ -47,6 +47,11 @@ button{
   cursor: pointer;
 }
 
+.table-row:hover {
+  cursor: pointer;
+}
+
+
  @-webkit-keyframes scale-up-center {
   0% {
     -webkit-transform: scale(0.5);

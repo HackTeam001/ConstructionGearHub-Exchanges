@@ -22,18 +22,57 @@ const Transaction:React.FC = () => {
   const id = 1;
 
   const { provider, account, connectWallet, disconnectWallet,contract,signer,escrowContract } = useWallet();
-
+  const [shopModalIsOpened, setShopModalIsOpened] = useState(false);
+  const [message, setMessage] = useState('');
+  const [message_color, setMessageColor] = useState('');
+  const [modalIsOpened, setModalIsOpened] = useState(false);
+  const [transactionId, setTransactionId] = useState(null);
 
 
   const[transactions , setTransactions] = useState([]);
+
+    const TransactionState = {
+      0: 'Awaiting Payment',
+      1: 'Awaiting Delivery',
+      2: 'Completed Transaction'
+  };
+
+const getStateName = (stateValue) => {
+  return TransactionState[stateValue];
+};
 
 
 
   console.log(account)
 
-  const handleConfirm = (transactionId) => {
+  const handleConfirm = async() => {
     // Implement your logic here to handle the confirmation
     console.log('Confirmed transaction:', transactionId);
+
+    if (account && escrowContract) {
+      // const contract = new Contract(CONTRACT_ABI, CONTRACT_ADDRESS, account);
+
+      try {
+      
+      const result = await contract.confirmDelivery(transactionId);
+      await result.wait();
+
+      console.log(result);
+      console.log("Transaction completed  successfully!");
+      setMessage(" Transaction completed  successfully!")
+      setMessageColor('w3-text-green')
+
+      }catch (error) {
+        console.error("Error initiating transacetion:", error);
+        setMessage("Something went wrong when completing Transaction!")
+        setMessageColor('w3-text-red')
+      }
+
+    
+    }
+    setModalIsOpened(false);
+    setShopModalIsOpened(true);
+
 };
 
      
@@ -47,12 +86,14 @@ const Transaction:React.FC = () => {
           try {
             const user_transactions = await  escrowContract.getAllTransactions();
 
+            const filteredTransactions = user_transactions.filter(transaction => transaction.buyer === account[0]);
 
 
-            setTransactions(user_transactions);
+
+            setTransactions(filteredTransactions);
 
 
-            console.log(user_transactions)
+            console.log(filteredTransactions)
 
           }catch(e){
               console.log(e)
@@ -91,15 +132,15 @@ const Transaction:React.FC = () => {
                     </thead>
                     <tbody>
                         {transactions.map(transaction => (
-                            <tr key={transaction.transactionId} onClick={() => handleConfirm(transaction.transactionId)}>
-                                <td>{transaction.transactionId}</td>
-                                <td>{transaction.buyer}</td>
-                                <td>{transaction.arbitrator}</td>
-                                <td>{transaction.seller}</td>
-                                <td>{transaction.itemPrice}</td>
-                                <td>{transaction.arbitratorFees}</td>
-                                <td>{transaction.finalPrice}</td>
-                                <td>{transaction.currentState}</td>
+                            <tr className='w3-text-light-blue  table-row' key={Number(transaction[0])} onClick={() => {setModalIsOpened(true);setTransactionId(Number(transaction[0]));}}>
+                                <td>{Number(transaction[0])}</td>
+                                <td>{formatEthereumAddress(transaction.buyer)}</td>
+                                <td>{formatEthereumAddress(transaction.arbitrator)}</td>
+                                <td>{formatEthereumAddress(transaction.seller)}</td>
+                                <td>{ethers.utils.formatEther(ethers.BigNumber.from(transaction[4]))}</td>
+                                <td>{ethers.utils.formatEther(ethers.BigNumber.from(transaction[5]))}</td>
+                                <td>{ethers.utils.formatEther(ethers.BigNumber.from(transaction[6]))}</td>
+                                <td>{getStateName(transaction.currentState)}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -113,7 +154,49 @@ const Transaction:React.FC = () => {
     )
 
     }
-
+          {modalIsOpened && (
+        <div className="w3-modal" style={{ display: "block" }}>
+          <div className="w3-modal-content w3-padding">
+            <div className="w3-container">
+              <p> Confirm this transacetion</p>
+              <button
+                onClick={handleConfirm}
+                className="w3-button w3-round w3-text-white w3-border w3-green"
+              >
+                Proceed
+              </button>
+              <button
+                className="w3-button w3-round w3-red w3-right"
+                onClick={() => {
+                  setModalIsOpened(false);
+                }}
+              >
+                close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {shopModalIsOpened && (
+          <div className="w3-modal" style={{ display: "block" }}>
+            <div className="w3-modal-content w3-padding">
+              <div className="w3-container">
+                <p className={`${message_color}`}>{message}</p>
+                <div className="formGroup">
+              </div>
+                <button
+                  className="w3-button w3-round w3-red w3-right"
+                  onClick={() => {
+                    setShopModalIsOpened(false);
+                  }}
+                >
+                  close
+                </button>
+              </div>
+            </div>
+          </div>
+         
+        )}
   </>
   )
 };

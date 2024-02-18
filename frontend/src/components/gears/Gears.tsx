@@ -78,7 +78,7 @@ const Gears: React.FC<GearsProps> = ({title}) => {
                             </Link>
                         </div>
                         <div className="gears-card-bottom">
-                            <p>{ethers.utils.formatEther(ethers.BigNumber.from(item[5]))}<span>ETH</span></p>
+                            <p>{ethers.utils.formatEther(ethers.BigNumber.from(item[5]))} <span>Fuse</span></p>
                             {/* Assuming the heart icon is for likes */}
                             <p><AiFillHeart /> 92</p> 
                         </div>

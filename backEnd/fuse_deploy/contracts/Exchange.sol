@@ -77,6 +77,7 @@ contract EscrowService {
         _buyer = payable(tx.origin);
         Transaction storage newTransaction = transactions[_transaction];
         emit contractTransactionInitiated(tx.origin,_itemPrice,_seller);
+        newTransaction.transactionId = _transaction;
         newTransaction.buyer = _buyer;
         newTransaction.arbitrator = _arbitrator;
         newTransaction.seller = _seller;
